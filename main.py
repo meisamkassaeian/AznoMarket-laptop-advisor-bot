@@ -1,31 +1,26 @@
 import os
+import asyncio
 from flask import Flask, request
 from telegram import Update
-from telegram.ext import (
-    Application,
-    CommandHandler,
-    ContextTypes,
-)
+from telegram.ext import Application, CommandHandler, ContextTypes
 
 TOKEN = os.environ.get("BOT_TOKEN")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 
-# ساخت اپ تلگرام
 application = Application.builder().token(TOKEN).build()
 
-# ------------------ هندلرها ------------------
+# ---------- هندلر ----------
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "سلام 👋\n"
-        "این ربات برای کمک به انتخاب لپ‌تاپ طراحی شده 💻\n"
-        "چند سوال ازت می‌پرسم تا بهترین کانفیگ رو پیشنهاد بدم.\n\n"
-        "برای شروع /start رو بزن 🚀"
+        "ربات راهنمای انتخاب لپ‌تاپ آماده است 💻\n"
+        "برای شروع دوباره /start را بزن 🚀"
     )
 
 application.add_handler(CommandHandler("start", start))
 
-# ------------------ Flask ------------------
+# ---------- Flask ----------
 
 flask_app = Flask(__name__)
 
@@ -40,8 +35,13 @@ async def webhook():
     await application.process_update(update)
     return "ok"
 
-# ------------------ اجرای Webhook ------------------
+
+# ---------- ست کردن Webhook ----------
+
+async def setup_webhook():
+    await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+
 
 if __name__ == "__main__":
-    application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
+    asyncio.run(setup_webhook())
     flask_app.run(host="0.0.0.0", port=10000)
