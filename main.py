@@ -28,19 +28,21 @@ flask_app = Flask(__name__)
 def home():
     return "Bot is running!"
 
+# 👇 مهم: این sync است نه async
 @flask_app.route(f"/{TOKEN}", methods=["POST"])
-async def webhook():
+def webhook():
     data = request.get_json(force=True)
     update = Update.de_json(data, application.bot)
-    await application.process_update(update)
-    return "ok"
 
+    # اجرای async داخل sync
+    asyncio.run(application.process_update(update))
+
+    return "ok"
 
 # ---------- ست کردن Webhook ----------
 
 async def setup_webhook():
     await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
-
 
 if __name__ == "__main__":
     asyncio.run(setup_webhook())
