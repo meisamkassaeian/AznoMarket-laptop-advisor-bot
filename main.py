@@ -12,7 +12,7 @@ app = Flask(__name__)
 application = Application.builder().token(TOKEN).build()
 
 
-# ===== هندلرها =====
+# ===== handlers =====
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("سلام 👋 ربات فعاله!")
 
@@ -33,11 +33,13 @@ def home():
     return "Bot is running!"
 
 
-# ===== تنظیم webhook =====
-async def set_webhook():
+# ===== startup =====
+async def startup():
+    await application.initialize()
+    await application.start()
     await application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
 
 
 if __name__ == "__main__":
-    asyncio.run(set_webhook())
+    asyncio.run(startup())
     app.run(host="0.0.0.0", port=10000)
