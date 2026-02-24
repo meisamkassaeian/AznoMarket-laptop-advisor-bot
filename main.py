@@ -15,29 +15,42 @@ TOKEN = os.environ.get("BOT_TOKEN")
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL")
 
 # مراحل مکالمه
-JOB, SOFTWARE, STRATEGY = range(3)
+START_BTN, JOB, SOFTWARE, STRATEGY = range(4)
 
 app = Flask(__name__)
 application = Application.builder().token(TOKEN).build()
 
-
-# ================= START =================
+# ================= START (Welcome Screen) =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data.clear()  # پاک کردن داده‌های قبلی
+    context.user_data.clear()
 
-    text = (
-        "👋 سلام!\n"
-        "این ربات برای کمک به انتخاب لپ‌تاپ مناسب شما ساخته شده.\n\n"
-        "💼 شغل یا نوع استفاده شما چیست؟"
+    keyboard = [["استارت 🚀"]]
+
+    await update.message.reply_text(
+        "👋 سلام!\n\n"
+        "این ربات توسط مجموعه «ازنو مارکت» طراحی شده تا به شما کمک کند "
+        "لپ‌تاپ مناسب نیاز خود را انتخاب کنید 💻\n\n"
+        "📢 کانال تلگرام:\n"
+        "https://t.me/AZNODIGITAL\n\n"
+        "🌐 سایت:\n"
+        "www.aznomarket.com\n\n"
+        "برای شروع روی دکمه زیر بزنید 👇",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
     )
 
+    return START_BTN
+
+
+# ================= START BUTTON =================
+async def start_btn(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         ["دانشجو عمومی", "دانشجو مهندسی"],
         ["مهندس / رندر", "کاربری خانگی"],
     ]
 
     await update.message.reply_text(
-        text, reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        "💼 شغل یا نوع استفاده شما چیست؟",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
     )
     return JOB
 
@@ -80,14 +93,19 @@ async def software(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def strategy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["strategy"] = update.message.text
 
+    job = context.user_data["job"]
     software = context.user_data["software"]
     strategy = context.user_data["strategy"]
 
-    # ===== Hard Filter =====
+    # ===== Hard Filter ساده =====
     cpu = "U"
     gpu = "Onboard"
 
-    if "رندر" in software or "مهندسی" in software or "هوش مصنوعی" in software:
+    if "رندر" in software or "مهندسی" in software:
+        cpu = "H"
+        gpu = "Dedicated"
+
+    if "هوش مصنوعی" in software:
         cpu = "H"
         gpu = "Dedicated"
 
@@ -102,32 +120,28 @@ async def strategy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🎯 پیشنهاد کانفیگ برای شما:\n\n"
         f"🧠 CPU: سری {cpu}\n"
         f"🎮 گرافیک: {gpu}\n"
-        f"💾 RAM: {ram}\n"
+        f"💾 RAM: {ram}\n\n"
+        "اگر می‌خواهید دوباره امتحان کنید، روی «استارت 🚀» بزنید 👇"
     )
 
     # حذف کیبورد قبلی
-    await update.message.reply_text(
-        text,
-        reply_markup=ReplyKeyboardRemove()
-    )
+    await update.message.reply_text(text, reply_markup=ReplyKeyboardRemove())
 
-    # نمایش دکمه استارت
+    # نمایش دوباره دکمه استارت
     keyboard = [["استارت 🚀"]]
     await update.message.reply_text(
-        "اگر می‌خواهید دوباره شروع کنید 👇",
-        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+        "شروع دوباره:",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True),
     )
 
-    return ConversationHandler.END
+    return START_BTN
 
 
 # ================= HANDLERS =================
 conv_handler = ConversationHandler(
-    entry_points=[
-        CommandHandler("start", start),
-        MessageHandler(filters.Regex("^استارت 🚀$"), start),
-    ],
+    entry_points=[CommandHandler("start", start)],
     states={
+        START_BTN: [MessageHandler(filters.TEXT & ~filters.COMMAND, start_btn)],
         JOB: [MessageHandler(filters.TEXT & ~filters.COMMAND, job)],
         SOFTWARE: [MessageHandler(filters.TEXT & ~filters.COMMAND, software)],
         STRATEGY: [MessageHandler(filters.TEXT & ~filters.COMMAND, strategy)],
@@ -136,7 +150,6 @@ conv_handler = ConversationHandler(
 )
 
 application.add_handler(conv_handler)
-
 
 # ================= INIT (Webhook) =================
 loop = asyncio.new_event_loop()
@@ -148,7 +161,6 @@ loop.run_until_complete(
     application.bot.set_webhook(f"{WEBHOOK_URL}/{TOKEN}")
 )
 
-
 # ================= WEBHOOK =================
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
@@ -156,11 +168,9 @@ def webhook():
     loop.run_until_complete(application.process_update(update))
     return "ok"
 
-
 @app.route("/")
 def home():
     return "AznoMarket Laptop Advisor Bot is running!"
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
