@@ -1,7 +1,7 @@
 import os
 import asyncio
 from flask import Flask, request
-from telegram import Update, ReplyKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -23,10 +23,11 @@ application = Application.builder().token(TOKEN).build()
 
 # ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data.clear()  # پاک کردن داده‌های قبلی
+
     text = (
         "👋 سلام!\n"
-        "این ربات برای کمک به انتخاب لپ‌تاپ مناسب شما توسط مجموعه ازنومارکت ساخته شده.\n\n"
-        "چند سؤال کوتاه می‌پرسم تا بهترین کانفیگ رو پیشنهاد بدم.\n\n"
+        "این ربات برای کمک به انتخاب لپ‌تاپ مناسب شما ساخته شده.\n\n"
         "💼 شغل یا نوع استفاده شما چیست؟"
     )
 
@@ -79,19 +80,14 @@ async def software(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def strategy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["strategy"] = update.message.text
 
-    job = context.user_data["job"]
     software = context.user_data["software"]
     strategy = context.user_data["strategy"]
 
-    # ===== Hard Filter ساده =====
+    # ===== Hard Filter =====
     cpu = "U"
     gpu = "Onboard"
 
-    if "رندر" in software or "مهندسی" in software:
-        cpu = "H"
-        gpu = "Dedicated"
-
-    if "هوش مصنوعی" in software:
+    if "رندر" in software or "مهندسی" in software or "هوش مصنوعی" in software:
         cpu = "H"
         gpu = "Dedicated"
 
@@ -106,17 +102,31 @@ async def strategy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🎯 پیشنهاد کانفیگ برای شما:\n\n"
         f"🧠 CPU: سری {cpu}\n"
         f"🎮 گرافیک: {gpu}\n"
-        f"💾 RAM: {ram}\n\n"
-        "اگر دوست داشتید دوباره امتحان کنید /start"
+        f"💾 RAM: {ram}\n"
     )
 
-    await update.message.reply_text(text)
+    # حذف کیبورد قبلی
+    await update.message.reply_text(
+        text,
+        reply_markup=ReplyKeyboardRemove()
+    )
+
+    # نمایش دکمه استارت
+    keyboard = [["استارت 🚀"]]
+    await update.message.reply_text(
+        "اگر می‌خواهید دوباره شروع کنید 👇",
+        reply_markup=ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+    )
+
     return ConversationHandler.END
 
 
 # ================= HANDLERS =================
 conv_handler = ConversationHandler(
-    entry_points=[CommandHandler("start", start)],
+    entry_points=[
+        CommandHandler("start", start),
+        MessageHandler(filters.Regex("^استارت 🚀$"), start),
+    ],
     states={
         JOB: [MessageHandler(filters.TEXT & ~filters.COMMAND, job)],
         SOFTWARE: [MessageHandler(filters.TEXT & ~filters.COMMAND, software)],
